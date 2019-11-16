@@ -2,13 +2,13 @@
 
 #include <Bounce.h> // include de-bounce library
 
-const int led = 13; // led is connected to pin 13
-const int keyPin = 7;  // morse key is connected to pin 7
-Bounce morseKey = Bounce(keyPin, 10);  // 10 ms debounce
+const int led = 11; // led is connected to pin 13
+const int keyPin = 8;  // morse key is connected to pin 7
+Bounce morseKey = Bounce(keyPin, 20);  // 10 ms debounce
 
-const unsigned long dashThresh = 150; // time threshold in ms to differentiate dots from dashes
-const unsigned long letterThresh = 500; // time threshold in ms to differentiate letter gaps
-const unsigned long wordThresh = 3000; // time threshold in ms to differentiate word gaps
+const unsigned long dashThresh = 1000; // time threshold in ms to differentiate dots from dashes
+const unsigned long letterThresh = 2000; // time threshold in ms to differentiate letter gaps
+const unsigned long wordThresh = 5000; // time threshold in ms to differentiate word gaps
 
 String inputString = ""; // initialise input string
 
@@ -19,6 +19,8 @@ unsigned long changeDuration = 0; // records the duration of state change
 unsigned long pauseDuration = 0; // records the duration of the last pause
 
 int pauseFlag = 0; // initilise the flag to indicate whether a pause has already been evaluated
+bool spaceFlag = false;
+bool superKeyMode = true;
 
 void setup()
 {
@@ -48,6 +50,7 @@ void loop()
 void keyDown()
 {
     downTime = millis();
+    pauseFlag = 0;
     digitalWrite(led, HIGH); // switch LED on
 }
 
@@ -57,7 +60,7 @@ void keyUp()
     changeDuration = upTime-downTime; 
     digitalWrite(led, LOW); // switch LED off
 
-    if (changeDuration>0 and changeDuration<dashThresh){
+    if (changeDuration>0 && changeDuration<dashThresh){
       inputString = inputString + ".";
       Serial.println("DOT");
 
@@ -76,17 +79,18 @@ void checkPause()
     timeNow = millis();
     pauseDuration = timeNow-upTime;
 
-    if (pauseDuration>=letterThresh and pauseDuration<wordThresh and pauseFlag){ // if the preceding pause was long enough AND a pause hasn't just been evaluated, evaluate the previous inputs as a single letter
-
-      evaluateLetter();
+    if (pauseDuration>=letterThresh && pauseDuration<wordThresh && pauseFlag){ // if the preceding pause was long enough AND a pause hasn't just been evaluated, evaluate the previous inputs as a single letter
+      if(superKeyMode){
+        evalSuperKey();
+      }else{
+        evaluateLetter();
+      }
       pauseFlag = 0;
       
-    } else if (pauseDuration >= wordThresh and pauseFlag) {
-
-      evaluateLetter();
+    } else if (pauseDuration >= wordThresh && spaceFlag) {
       newWord();
       pauseFlag = 0; 
-      
+      spaceFlag = false;
     }
 }
 
@@ -94,6 +98,23 @@ void newWord()
 {
   Keyboard.press(KEY_SPACE);
   Keyboard.release(KEY_SPACE);
+}
+
+void evalSuperKey() {
+  if(inputString == ".") {
+    Keyboard.set_modifier(MODIFIERKEY_GUI);
+    Keyboard.send_now();
+    Keyboard.set_key1(KEY_L);
+    Keyboard.send_now();
+
+    // Release Keys
+    Keyboard.set_modifier(0);
+    Keyboard.set_key1(0);
+    Keyboard.send_now();
+  } else if(inputString == "......"){
+        superKeyMode = false;
+  }
+  inputString = "";
 }
 
 void evaluateLetter()
@@ -207,14 +228,14 @@ void evaluateLetter()
   } else if (inputString=="-----"){
       Keyboard.press(KEY_0);
       Keyboard.release(KEY_0);
+  }
+  else if(inputString == "......"){
+        superKeyMode = true;
   } else { 
       Keyboard.press(KEY_MINUS);
       Keyboard.release(KEY_MINUS);
   }
 
   inputString = ""; // re-initialise inputString ready for new letter
-
+  spaceFlag = true;
 }
-
-
-
