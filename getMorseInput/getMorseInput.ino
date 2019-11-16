@@ -237,5 +237,7 @@ void evaluateLetter()
   }
 
   inputString = ""; // re-initialise inputString ready for new letter
-  spaceFlag = true;
+  if(superKeyMode){
+    spaceFlag = true;
+  }
 }
